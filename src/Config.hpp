@@ -15,9 +15,9 @@ public:
         }
         std::string line;
         while (std::getline(file, line)) {
-            // Remove whitespace
-            line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
-            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+            // Trim whitespace from both ends
+            line.erase(0, line.find_first_not_of(" \t\r\n"));
+            line.erase(line.find_last_not_of(" \t\r\n") + 1);
             
             if (line.empty() || line[0] == '#') continue;
 
@@ -25,6 +25,13 @@ public:
             if (pos != std::string::npos) {
                 std::string key = line.substr(0, pos);
                 std::string value = line.substr(pos + 1);
+                
+                // Trim key and value
+                key.erase(0, key.find_first_not_of(" \t\r\n"));
+                key.erase(key.find_last_not_of(" \t\r\n") + 1);
+                value.erase(0, value.find_first_not_of(" \t\r\n"));
+                value.erase(value.find_last_not_of(" \t\r\n") + 1);
+                
                 settings[key] = value;
             }
         }

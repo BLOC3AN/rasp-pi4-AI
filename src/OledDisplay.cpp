@@ -4,11 +4,12 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
-#include <iostream>
+#include <cstring>
+#include <cerrno>
 
 OledDisplay::OledDisplay(const std::string& device, uint8_t address) : addr(address) {
     if ((i2c_fd = open(device.c_str(), O_RDWR)) < 0) {
-        Logger::log(LogLevel::ERROR, "Failed to open i2c bus: " + device);
+        Logger::log(LogLevel::ERROR, "Failed to open i2c bus: " + device + " (Error: " + std::string(strerror(errno)) + ")");
         throw std::runtime_error("I2C Open Failed");
     }
     if (ioctl(i2c_fd, I2C_SLAVE, addr) < 0) {
