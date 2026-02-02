@@ -6,6 +6,7 @@
 #include "Logger.hpp"
 #include "OledDisplay.hpp"
 #include "OcrEngine.hpp"
+#include "MjpegServer.hpp"
 
 bool keepRunning = true;
 
@@ -28,6 +29,11 @@ int main() {
         int width = cfg.getInt("FRAME_WIDTH", 320);
         int height = cfg.getInt("FRAME_HEIGHT", 240);
         int interval = cfg.getInt("OCR_INTERVAL_MS", 100);
+        int webPort = cfg.getInt("WEBSERVER_PORT", 8080);
+
+        // 0. Initialize Web Server for Alignment
+        MjpegServer webServer(webPort);
+        webServer.start();
 
         // 1. Initialize Display
         OledDisplay oled(i2cDev, oledAddr);
@@ -65,6 +71,9 @@ int main() {
                 continue;
             }
 
+            // Update web preview
+            webServer.updateFrame(frame);
+
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastOcrTime).count();
 
@@ -90,6 +99,7 @@ int main() {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
+        webServer.stop();
         oled.clear();
         oled.showText("System Stopped", "Goodbye!");
         std::this_thread::sleep_for(std::chrono::seconds(1));
