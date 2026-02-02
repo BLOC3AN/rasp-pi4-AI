@@ -6,13 +6,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find dependencies
 find_package(OpenCV REQUIRED)
-find_package(Tesseract REQUIRED)
+
+# Use PkgConfig for Tesseract and Leptonica as they often don't provide CMake configs on Debian
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(TESSERACT REQUIRED tesseract)
+pkg_check_modules(LEPTONICA REQUIRED lept)
 
 # Include directories
-include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories(/usr/include/tesseract)
-include_directories(/usr/include/leptonica)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+include_directories(
+    ${OpenCV_INCLUDE_DIRS}
+    ${TESSERACT_INCLUDE_DIRS}
+    ${LEPTONICA_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 # Source files
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
@@ -23,8 +29,8 @@ add_executable(ocr_app ${SRC_FILES})
 # Link libraries
 target_link_libraries(ocr_app 
     ${OpenCV_LIBS} 
-    tesseract 
-    lept 
+    ${TESSERACT_LIBRARIES}
+    ${LEPTONICA_LIBRARIES}
     i2c
     pthread
 )
