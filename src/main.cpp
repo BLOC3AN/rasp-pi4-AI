@@ -40,11 +40,30 @@ int main() {
         OledDisplay oled(i2cDev, oledAddr);
         oled.showText("System Starting", "Please wait...");
 
-        // 2. Initialize Camera
-        cv::VideoCapture cap(camIdx, cv::CAP_V4L2);
+        // 2. Initialize Camera (Using GStreamer for RPi optimization)
+        // Note: libcamerasrc is the modern stack, v4l2src is the legacy/v4l2 stack.
+        // We try both or stick to a robust one.
+        std::string pipeline = "v4l2src device=" + i2cDev + " ! video/x-raw, width=" + std::to_string(width) + 
+                               ", height=" + std::to_string(height) + ", framerate=30/1 ! videoconvert ! appsink";
+        
+        // Revised pipeline for modern libcamera-based OS
+        std::string libcamera_pipeline = "libcamerasrc ! video/x-raw, width=" + std::to_string(width) + 
+                                         ", height=" + std::to_string(height) + " ! videoconvert ! appsink";
+
+        cv::VideoCapture cap;
+        Logger::log(LogLevel::INFO, "Opening camera with GStreamer...");
+        
+        // Try libcamera first (modern)
+        cap.open(libcamera_pipeline, cv::CAP_GSTREAMER);
+        
         if (!cap.isOpened()) {
-            Logger::log(LogLevel::WARNING, "Could not open camera with CAP_V4L2, trying default...");
-            cap.open(camIdx);
+            Logger::log(LogLevel::WARNING, "libcamerasrc failed, trying v4l2src...");
+            cap.open(pipeline, cv::CAP_GSTREAMER);
+        }
+
+        if (!cap.isOpened()) {
+            Logger::log(LogLevel::WARNING, "GStreamer failed, trying default V4L2...");
+            cap.open(camIdx, cv::CAP_V4L2);
         }
         
         if (!cap.isOpened()) {

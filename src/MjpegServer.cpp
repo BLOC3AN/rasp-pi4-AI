@@ -77,10 +77,15 @@ void MjpegServer::serverLoop() {
 }
 
 void MjpegServer::handleClient(int clientSocket) {
-    // Send HTTP Header
+    // Standard MJPEG HTTP Header
     std::string header = 
         "HTTP/1.1 200 OK\r\n"
-        "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
+        "Connection: close\r\n"
+        "Max-Age: 0\r\n"
+        "Expires: 0\r\n"
+        "Cache-Control: no-cache, private\r\n"
+        "Pragma: no-cache\r\n"
+        "Content-Type: multipart/x-mixed-replace; boundary=--frame\r\n\r\n";
     
     if (write(clientSocket, header.c_str(), header.length()) < 0) {
         close(clientSocket);
@@ -91,9 +96,7 @@ void MjpegServer::handleClient(int clientSocket) {
         std::vector<uchar> jpeg;
         {
             std::lock_guard<std::mutex> lock(frameMutex);
-            if (currentJpeg.empty()) {
-                jpeg.clear();
-            } else {
+            if (!currentJpeg.empty()) {
                 jpeg = currentJpeg;
             }
         }
@@ -102,15 +105,21 @@ void MjpegServer::handleClient(int clientSocket) {
             std::stringstream ss;
             ss << "--frame\r\n"
                << "Content-Type: image/jpeg\r\n"
-               << "Content-Length: " << jpeg.size() << "\r\n\r\n";
+               << "Content-Length: " << jpeg.size() << "\r\n"
+               << "X-Timestamp: " << std::time(nullptr) << "\r\n"
+               << "\r\n";
             std::string partHeader = ss.str();
             
             if (write(clientSocket, partHeader.c_str(), partHeader.length()) < 0) break;
             if (write(clientSocket, jpeg.data(), jpeg.size()) < 0) break;
             if (write(clientSocket, "\r\n", 2) < 0) break;
+        } else {
+            // Wait for a frame if empty
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            continue;
         }
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // ~10 FPS for preview
+        std::this_thread::sleep_for(std::chrono::milliseconds(65)); // ~15 FPS target
     }
     
     close(clientSocket);
