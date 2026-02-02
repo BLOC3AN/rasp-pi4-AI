@@ -107,7 +107,11 @@ int main() {
             if (elapsed >= interval) {
                 std::string result = ocr.recognize(frame);
                 
-                if (!result.empty() && result != " ") {
+                // Remove non-alphanumeric noise at start/end
+                result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
+                result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
+
+                if (result.length() > 1) { // Only update if we have meaningful text
                     Logger::log(LogLevel::INFO, "OCR: " + result);
                     
                     // Display on OLED
@@ -115,8 +119,10 @@ int main() {
                     std::string line2 = (result.length() > 15) ? result.substr(15, 15) : "";
                     oled.showText(line1, line2);
                 } else {
-                    // Optional: show scanning status if result is empty
-                    // oled.showText("Scanning...", "");
+                    // Refresh "Scanning" every few seconds to show life
+                    if (std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count() % 2 == 0) {
+                        oled.showText("Scanning...", "Waiting for text");
+                    }
                 }
                 
                 lastOcrTime = now;

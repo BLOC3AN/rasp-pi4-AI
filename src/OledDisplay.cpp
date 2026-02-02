@@ -26,17 +26,26 @@ OledDisplay::~OledDisplay() {
 void OledDisplay::sendCommand(uint8_t cmd) {
     uint8_t buf[2] = {0x00, cmd};
     if (write(i2c_fd, buf, 2) != 2) {
-        // Quiet fail or log
+        Logger::log(LogLevel::WARNING, "I2C Command Failed: " + std::to_string(cmd) + " (" + std::string(strerror(errno)) + ")");
     }
 }
 
 void OledDisplay::sendData(const std::vector<uint8_t>& data) {
-    std::vector<uint8_t> buf;
-    buf.reserve(data.size() + 1);
-    buf.push_back(0x40);
-    buf.insert(buf.end(), data.begin(), data.end());
-    if (write(i2c_fd, buf.data(), buf.size()) != (ssize_t)buf.size()) {
-        // Quiet fail
+    // SH1106 data transfer: Co = 0, D/C# = 1
+    // Some I2C controllers have a limit (e.g. 32 or 64 bytes). 
+    // We'll send in chunks of 16 bytes to be extremely safe on all I2C implementations.
+    const size_t CHUNK_SIZE = 16;
+    for (size_t i = 0; i < data.size(); i += CHUNK_SIZE) {
+        size_t size = std::min(CHUNK_SIZE, data.size() - i);
+        std::vector<uint8_t> buf;
+        buf.reserve(size + 1);
+        buf.push_back(0x40);
+        buf.insert(buf.end(), data.begin() + i, data.begin() + i + size);
+        
+        if (write(i2c_fd, buf.data(), buf.size()) != (ssize_t)buf.size()) {
+            Logger::log(LogLevel::WARNING, "I2C Data Write Failed (" + std::string(strerror(errno)) + ")");
+            break;
+        }
     }
 }
 
