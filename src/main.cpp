@@ -34,15 +34,20 @@ int main() {
         oled.showText("System Starting", "Please wait...");
 
         // 2. Initialize Camera
-        cv::VideoCapture cap(camIdx);
+        cv::VideoCapture cap(camIdx, cv::CAP_V4L2);
+        if (!cap.isOpened()) {
+            Logger::log(LogLevel::WARNING, "Could not open camera with CAP_V4L2, trying default...");
+            cap.open(camIdx);
+        }
+        
         if (!cap.isOpened()) {
             Logger::log(LogLevel::ERROR, "Could not open camera index " + std::to_string(camIdx));
             oled.showText("CAM ERROR", "Check Conn");
             return 1;
         }
+
         cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
-        // Optimization: Reduce FPS if needed to save CPU, but usually OpenCV on Pi handles this well
         
         // 3. Initialize OCR Engine
         OcrEngine ocr(lang);
