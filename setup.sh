@@ -8,6 +8,7 @@ sudo apt-get install -y build-essential cmake pkg-config \
     libleptonica-dev \
     libi2c-dev \
     i2c-tools \
+    v4l-utils \
     tesseract-ocr-vie \
     libcurl4-openssl-dev
 
