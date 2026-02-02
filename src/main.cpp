@@ -30,6 +30,7 @@ int main() {
         int height = cfg.getInt("FRAME_HEIGHT", 240);
         int interval = cfg.getInt("OCR_INTERVAL_MS", 100);
         int webPort = cfg.getInt("WEBSERVER_PORT", 8080);
+        int previewWidth = cfg.getInt("PREVIEW_WIDTH", 320);
 
         // 0. Initialize Web Server for Alignment
         MjpegServer webServer(webPort);
@@ -71,8 +72,15 @@ int main() {
                 continue;
             }
 
-            // Update web preview
-            webServer.updateFrame(frame);
+            // Update web preview (Resized for performance)
+            if (previewWidth > 0 && previewWidth < frame.cols) {
+                cv::Mat preview;
+                float aspect = (float)frame.rows / frame.cols;
+                cv::resize(frame, preview, cv::Size(previewWidth, (int)(previewWidth * aspect)));
+                webServer.updateFrame(preview);
+            } else {
+                webServer.updateFrame(frame);
+            }
 
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastOcrTime).count();
