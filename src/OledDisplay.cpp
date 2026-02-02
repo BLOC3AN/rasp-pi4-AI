@@ -28,13 +28,13 @@ void OledDisplay::sendCommand(uint8_t cmd) {
     if (write(i2c_fd, buf, 2) != 2) {
         Logger::log(LogLevel::WARNING, "I2C Command Failed: " + std::to_string(cmd) + " (" + std::string(strerror(errno)) + ")");
     }
+    usleep(1000); // 1ms delay after command for stabilization
 }
 
 void OledDisplay::sendData(const std::vector<uint8_t>& data) {
-    // SH1106 data transfer: Co = 0, D/C# = 1
-    // Some I2C controllers have a limit (e.g. 32 or 64 bytes). 
-    // We'll send in chunks of 16 bytes to be extremely safe on all I2C implementations.
-    const size_t CHUNK_SIZE = 16;
+    // Some I2C controllers (like Pi's bit-banging or high load) fail on large writes.
+    // 8 bytes chunk size is extremely safe.
+    const size_t CHUNK_SIZE = 8;
     for (size_t i = 0; i < data.size(); i += CHUNK_SIZE) {
         size_t size = std::min(CHUNK_SIZE, data.size() - i);
         std::vector<uint8_t> buf;
@@ -46,31 +46,31 @@ void OledDisplay::sendData(const std::vector<uint8_t>& data) {
             Logger::log(LogLevel::WARNING, "I2C Data Write Failed (" + std::string(strerror(errno)) + ")");
             break;
         }
+        usleep(500); // 0.5ms delay between data chunks
     }
 }
 
 void OledDisplay::init() {
     uint8_t init_cmds[] = {
         0xAE,       // Display Off
-        0xD5, 0x80, // Set Display Clock Divide Ratio/ Oscillator Frequency
-        0xA8, 0x3F, // Set Multiplex Ratio
-        0xD3, 0x00, // Set Display Offset
-        0x40,       // Set Display Start Line
-        0xAD, 0x8B, // Set Charge Pump (SH1106 spec)
-        0xA1,       // Set Segment Re-Map (Normal)
-        0xC8,       // Set COM Output Scan Direction
-        0xDA, 0x12, // Set COM Pins Hardware Configuration
-        0x81, 0xBF, // Set Contrast Control
-        0xD9, 0x22, // Set Pre-charge Period
-        0xDB, 0x40, // Set VCOMH Deselect Level
-        0x30,       // Set Pump Voltage (SH1106 specific)
-        0xA4,       // Entire Display On (Resume from RAM)
-        0xA6,       // Set Normal/Inverse Display
+        0xD5, 0x80, // Clock Divide Ratio
+        0xA8, 0x3F, // Multiplex Ratio
+        0xD3, 0x00, // Display Offset
+        0x40,       // Start Line
+        0xAD, 0x8B, // DC-DC Control Mode (Charge Pump ON)
+        0xA1,       // Segment Re-map
+        0xC8,       // COM Output Scan Direction
+        0xDA, 0x12, // COM Pins Hardware Configuration
+        0x81, 0x80, // Contrast Control (Reduced for stability)
+        0xD9, 0x22, // Pre-charge Period
+        0xDB, 0x35, // VCOMH Deselect Level
+        0xA4,       // Entire Display On
+        0xA6,       // Normal Display
         0xAF        // Display On
     };
     for (uint8_t cmd : init_cmds) sendCommand(cmd);
     clear();
-    Logger::log(LogLevel::INFO, "OLED SH1106 (I2C 0x3C) Optimized & Ready!");
+    Logger::log(LogLevel::INFO, "OLED Stable Init Complete.");
 }
 
 void OledDisplay::clear() {
